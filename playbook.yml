@@ -1,0 +1,127 @@
+--- 
+- name: Configure self-monitoring host
+  hosts: all
+  remote_user: vagrant
+  become: true
+
+  tasks:
+
+  - name: Install apt utilities
+    apt:
+        name: "{{item}}"
+        state: present
+        update_cache: yes
+    loop:
+        - ca-certificates
+        - curl
+
+  - name: Add GPG key
+    apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+  - name: Add the repository to Apt sources
+    apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+  - name: Install the Docker packages
+    apt:
+        name: "{{item}}"
+        state: latest
+        update_cache: yes
+    loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+
+  - name: Check docker is active
+    service:
+        name: docker
+        state: started
+        enabled: yes
+
+  - name: Ensure group "docker" exists
+    ansible.builtin.group:
+        name: docker
+        state: present
+
+  - name: adding user vagrant to docker group
+    user:
+        name: vagrant
+        groups: docker
+        append: yes
+
+  - name: Create Node Exporter user
+    user:
+      name: node_exporter
+      system: yes
+      shell: /usr/sbin/nologin
+
+  - name: Download and extract Node Exporter
+    get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz"
+        dest: "/tmp/node_exporter-1.7.0.linux-amd64.tar.gz"
+
+  - name: Extract Node Exporter
+    ansible.builtin.unarchive:
+        src: "/tmp/node_exporter-1.7.0.linux-amd64.tar.gz"
+        dest: "/tmp/"
+        remote_src: yes
+
+  - name: Copy file with owner and permissions
+    ansible.builtin.copy:
+        src: /tmp/node_exporter-1.7.0.linux-amd64/node_exporter
+        dest: /usr/sbin/node_exporter
+        mode: "0755"
+        owner: "node_exporter"
+        group: "node_exporter"
+        remote_src: yes
+
+  - name: Copy node_exporter.service file in /etc/systemd/system/node_exporter.service
+    ansible.builtin.copy:
+        src: node_exporter/node_exporter.service
+        dest: /etc/systemd/system/node_exporter.service
+        mode: "0644"
+        owner: "root"
+        group: "root"
+  
+  - name: Settings for using node_exporter options
+    shell: mkdir -p /etc/sysconfig && touch /etc/sysconfig/node_exporter && OPTIONS="--collector.textfile.directory /var/lib/node_exporter/textfile_collector"
+
+  - name: Starting node_exporter.service
+    ansible.builtin.systemd:
+      name: node_exporter.service
+      daemon_reload: true
+      state: started
+      enabled: true
+
+  - name: Creates directory for docker compose sources
+    ansible.builtin.file:
+      path: /home/vagrant/compose
+      state: directory
+
+
+  - name: Copy docker compose sources
+    copy:
+      src: ./compose 
+      dest: /home/vagrant/
+      mode: "0755"
+      owner: "vagrant"
+      group: "vagrant"
+
+  - name: Creates directory for docker compose sources
+    ansible.builtin.file:
+      path: /home/vagrant/compose/grafana/dashboard
+      state: directory
+
+  - name: Download dashboard node-exporter-full
+    get_url:
+      url: https://github.com/rfmoz/grafana-dashboards/blob/master/prometheus/node-exporter-full.json
+      dest: /home/vagrant/compose/grafana/dashboard/node-exporter-full.json
+      mode: '0755'
+
+  - name: Docker compose up
+    shell:
+      cmd: "cd /home/vagrant/compose/ && docker compose -f /home/vagrant/compose/docker-compose.yml up -d"
+
