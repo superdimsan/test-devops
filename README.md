@@ -1,4 +1,9 @@
-# Решение тестового задания на позицию Devops инженера.
+## Описание задачи
+  - Создать виртуальную машину на базе [Ubuntu 20.04](https://app.vagrantup.com/generic/boxes/ubuntu2004) с помощью [Vagrant](https://www.vagrantup.com/).
+  - Настроить виртуальную машину через [Ansible](https://www.ansible.com/).
+  - Создать отдельные контейнеры с [Prometheus](https://prometheus.io/) и [Grafana](https://grafana.com/) при помощи [docker-compose.yml](https://docs.docker.com/compose/compose-file/compose-file-v3/).
+  - Добавить dashboard [Node Exporter Full](https://grafana.com/grafana/dashboards/1860-node-exporter-full/), который визуализирует метрики запущенной VM.
+  - После выполнения команды `vagrant up` в браузере по адресу [http://localhost:3000](http://localhost:3000) должна открываться [Grafana](https://grafana.com/) с [Node Exporter Full](https://grafana.com/grafana/dashboards/1860-node-exporter-full/).
 
 ## Запуск проекта:
 ```shell
